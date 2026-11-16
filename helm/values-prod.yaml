@@ -1,0 +1,58 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/sorobanerp/pfm-ingestion-bff-go
+  tag: "1.0.0"
+  pullPolicy: Always
+
+serviceAccount:
+  create: true
+  name: pfm-ingestion-bff-go-sa
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/pfm-ingestion-bff-go-irsa-prod
+
+service:
+  type: ClusterIP
+  port: 8081
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "256Mi"
+  limits:
+    cpu: "2000m"
+    memory: "1Gi"
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8081
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8081
+  initialDelaySeconds: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 75
+
+env:
+  PORT: "8081"
+  KAFKA_BROKERS: "kafka-headless.pfm-banking.svc.cluster.local:9092"
+  CORE_LEDGER_GRPC_ADDR: "pfm-core-ledger-java.pfm-banking.svc.cluster.local:9090"
+  OTEL_SERVICE_NAME: "pfm-ingestion-bff-go"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "0.25"

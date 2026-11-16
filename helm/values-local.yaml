@@ -1,0 +1,57 @@
+replicaCount: 1
+
+image:
+  repository: sorobanerp/pfm-ingestion-bff-go
+  tag: local
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: pfm-ingestion-bff-go-sa
+
+service:
+  type: ClusterIP
+  port: 8081
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "128Mi"
+  limits:
+    cpu: "1000m"
+    # Strict RAM ceiling aligned with Zero-Disk 15MB PDF stream parsing (ADR-006)
+    memory: "512Mi"
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8081
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8081
+  initialDelaySeconds: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+env:
+  PORT: "8081"
+  LOCALSTACK_ENDPOINT: "http://pfm-localstack:4566"
+  KAFKA_BROKERS: "pfm-kafka:29092"
+  CORE_LEDGER_GRPC_ADDR: "pfm-core-ledger-java:9090"
+  OTEL_SERVICE_NAME: "pfm-ingestion-bff-go"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  OTEL_TRACES_SAMPLER: "always_on"
