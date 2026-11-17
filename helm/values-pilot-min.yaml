@@ -1,3 +1,7 @@
+ports:
+  # container = porta de escuta do processo (env); service = porta do Service K8s
+  container: 8080
+  service: 80
 # FinOps Minimum Footprint for 5-User Family Pilot (~US$ 8/mo GCP / ~US$ 41/mo AWS)
 replicaCount: 1
 
@@ -7,12 +11,14 @@ image:
   pullPolicy: IfNotPresent
 
 service:
-  httpPort: 8081
+  httpPort: 80
 
 env:
-  PORT: "8081"
+  SERVER_PORT: "8080"
   KAFKA_BROKERS: "pfm-kafka.pfm-platform.svc.cluster.local:9092"
   CORE_LEDGER_GRPC_ADDR: "pfm-core-ledger-java.pfm-platform.svc.cluster.local:9090"
+  CORE_LEDGER_HTTP_URL: "http://pfm-core-ledger-java.pfm-platform.svc.cluster.local:8080"
+  FORECAST_GRPC_ADDR: "pfm-forecast-engine-go:9090"
 
 resources:
   requests:

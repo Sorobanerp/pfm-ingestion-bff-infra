@@ -11,6 +11,6 @@ spec:
     app: pfm-ingestion-bff-go
   ports:
     - name: http
-      port: 8081
+      port: {{ .Values.ports.service }}
       targetPort: http
       protocol: TCP

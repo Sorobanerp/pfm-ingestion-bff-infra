@@ -13,7 +13,7 @@ spec:
   ingress:
     - ports:
         - protocol: TCP
-          port: 8081
+          port: {{ .Values.ports.container }}
   egress:
     - to:
         - podSelector:
@@ -28,7 +28,7 @@ spec:
               app: pfm-forecast-engine-go
       ports:
         - protocol: TCP
-          port: 9091
+          port: 9090
     - to:
         - podSelector:
             matchLabels:

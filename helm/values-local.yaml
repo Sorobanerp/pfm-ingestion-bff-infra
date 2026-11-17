@@ -1,3 +1,7 @@
+ports:
+  # container = porta de escuta do processo (env); service = porta do Service K8s
+  container: 18100
+  service: 80
 replicaCount: 1
 
 image:
@@ -11,7 +15,7 @@ serviceAccount:
 
 service:
   type: ClusterIP
-  port: 8081
+  port: 80
 
 resources:
   requests:
@@ -25,7 +29,7 @@ resources:
 livenessProbe:
   httpGet:
     path: /health
-    port: 8081
+    port: 18100
   initialDelaySeconds: 5
   periodSeconds: 10
   timeoutSeconds: 2
@@ -34,7 +38,7 @@ livenessProbe:
 readinessProbe:
   httpGet:
     path: /health
-    port: 8081
+    port: 18100
   initialDelaySeconds: 3
   periodSeconds: 5
   timeoutSeconds: 2
@@ -48,10 +52,12 @@ autoscaling:
   targetMemoryUtilizationPercentage: 75
 
 env:
-  PORT: "8081"
+  SERVER_PORT: "18100"
   LOCALSTACK_ENDPOINT: "http://pfm-localstack:4566"
   KAFKA_BROKERS: "pfm-kafka:29092"
   CORE_LEDGER_GRPC_ADDR: "pfm-core-ledger-java:9090"
+  CORE_LEDGER_HTTP_URL: "http://pfm-core-ledger-java:8080"
+  FORECAST_GRPC_ADDR: "pfm-forecast-engine-go:9090"
   OTEL_SERVICE_NAME: "pfm-ingestion-bff-go"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
   OTEL_TRACES_SAMPLER: "always_on"
