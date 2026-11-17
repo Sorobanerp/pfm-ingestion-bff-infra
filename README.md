@@ -16,3 +16,10 @@ pfm-ingestion-bff-infra/
 │   └── values-prod.yaml        # Produção HA com IRSA, HPA (3..15) e OpenTelemetry OTLP
 └── .github/workflows/ci-cd.yml # Testes Go (-race), Gitleaks, Semgrep, Trivy e Build Distroless
 ```
+
+---
+
+## Topologia de Portas: Local Host vs. Kubernetes Cloud
+
+- **Host Local (`values-local.yaml`):** HTTP `18100` (`SERVER_PORT`), Envoy `18080`, LocalStack `14566`, Kafka `19092`, Ledger `18200`/`18210`, Forecast `18110`.
+- **Produção K8s (`values-prod.yaml`):** HTTP `8080` (Service & Container), Envoy `8080`, Kafka `9092`, Ledger `8080`/`9090`, Forecast `9090`.
