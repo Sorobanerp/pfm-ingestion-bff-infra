@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pfm-ingestion-bff-go
+  namespace: pfm-platform
+  labels:
+    app: pfm-ingestion-bff-go
+spec:
+  type: ClusterIP
+  selector:
+    app: pfm-ingestion-bff-go
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+      protocol: TCP

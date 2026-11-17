@@ -1,0 +1,25 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/dantas-pfm/pfm-ingestion-bff-go
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+service:
+  httpPort: 8081
+env:
+  PORT: "8081"
+  LOCALSTACK_ENDPOINT: "http://localstack:4566"
+  KAFKA_BROKERS: "pfm-kafka.pfm-platform.svc.cluster.local:9092"
+  CORE_LEDGER_GRPC_ADDR: "pfm-core-ledger-java.pfm-platform.svc.cluster.local:9090"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
