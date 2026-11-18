@@ -59,6 +59,6 @@ env:
   CORE_LEDGER_HTTP_URL: "http://pfm-core-ledger-java.pfm-banking.svc.cluster.local:8080"
   FORECAST_GRPC_ADDR: "pfm-forecast-engine-go:9090"
   OTEL_SERVICE_NAME: "pfm-ingestion-bff-go"
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://datadog-agent.monitoring.svc.cluster.local:4318"
   OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
   OTEL_TRACES_SAMPLER_ARG: "0.25"
