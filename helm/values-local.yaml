@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: sorobanerp/pfm-ingestion-bff-go
   tag: local
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 serviceAccount:
   create: true
