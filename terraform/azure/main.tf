@@ -40,6 +40,11 @@ resource "azurerm_storage_account" "statements_storage" {
   account_tier             = "Standard"
   account_replication_type = "ZRS"
   min_tls_version          = "TLS1_2"
+
+  network_rules {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
 }
 
 resource "azurerm_storage_container" "statements_encrypted" {
