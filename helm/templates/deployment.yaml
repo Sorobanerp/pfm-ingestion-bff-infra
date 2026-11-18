@@ -5,6 +5,9 @@ metadata:
   namespace: pfm-platform
   labels:
     app: pfm-ingestion-bff-go
+    tags.datadoghq.com/service: "pfm-ingestion-bff-go"
+    tags.datadoghq.com/env: "production"
+    tags.datadoghq.com/version: "0.1.0"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -14,6 +17,9 @@ spec:
     metadata:
       labels:
         app: pfm-ingestion-bff-go
+        tags.datadoghq.com/service: "pfm-ingestion-bff-go"
+        tags.datadoghq.com/env: "production"
+        tags.datadoghq.com/version: "0.1.0"
     spec:
       securityContext:
         runAsNonRoot: true
@@ -21,6 +27,13 @@ spec:
       containers:
         - name: pfm-ingestion-bff-go
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: http
               containerPort: {{ .Values.ports.container }}
