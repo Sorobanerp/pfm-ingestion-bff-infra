@@ -16,18 +16,51 @@ variable "environment" {
 
 variable "aws_region" {
   type        = string
-  default     = "sa-east-1"
-  description = "Primary AWS Region (São Paulo)"
+  default     = "us-east-2"
+  description = "Primary AWS Region (Ohio)"
+}
+
+variable "shared_state_bucket" {
+  type        = string
+  default     = "sorobanerp-pfm-tfstate-us-east-2-366476833548"
+  description = "S3 bucket storing pfm-shared-infra remote state"
 }
 
 variable "kms_master_key_arn" {
   type        = string
-  description = "ARN of alias/pfm-tenant-master-key exported by pfm-shared-infra"
+  default     = ""
+  description = "Optional override for KMS Master Key ARN (defaults to pfm-shared-infra remote state output)"
 }
 
 variable "oidc_provider_arn" {
   type        = string
-  description = "EKS OIDC Provider ARN for IRSA Least-Privilege authentication"
+  default     = ""
+  description = "Optional override for EKS OIDC Provider ARN (defaults to pfm-shared-infra remote state output)"
+}
+
+variable "oidc_issuer_url" {
+  type        = string
+  default     = ""
+  description = "Optional override for EKS OIDC Issuer URL without https:// (defaults to pfm-shared-infra remote state output)"
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+data "terraform_remote_state" "shared" {
+  backend = "s3"
+  config = {
+    bucket = var.shared_state_bucket
+    key    = "pfm-shared-infra/terraform.tfstate"
+    region = var.aws_region
+  }
+}
+
+locals {
+  kms_master_key_arn = coalesce(var.kms_master_key_arn, try(data.terraform_remote_state.shared.outputs.kms_master_key_arn, ""))
+  oidc_provider_arn  = coalesce(var.oidc_provider_arn, try(data.terraform_remote_state.shared.outputs.oidc_provider_arn, ""))
+  oidc_issuer_url    = coalesce(var.oidc_issuer_url, try(data.terraform_remote_state.shared.outputs.oidc_issuer_url, ""))
 }
 
 # 1. Dedicated S3 Bucket for KMS-Encrypted Credit Card Statements (SSE-KMS)
@@ -50,12 +83,19 @@ resource "aws_s3_bucket_public_access_block" "statements_encrypted" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_versioning" "statements_encrypted" {
+  bucket = aws_s3_bucket.statements_encrypted.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "statements_encrypted" {
   bucket = aws_s3_bucket.statements_encrypted.id
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = var.kms_master_key_arn
+      kms_master_key_id = local.kms_master_key_arn
       sse_algorithm     = "aws:kms"
     }
     bucket_key_enabled = true
@@ -69,12 +109,17 @@ data "aws_iam_policy_document" "irsa_assume_role" {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     principals {
       type        = "Federated"
-      identifiers = [var.oidc_provider_arn]
+      identifiers = [local.oidc_provider_arn]
     }
     condition {
       test     = "StringEquals"
-      variable = "system:serviceaccount:pfm-banking:pfm-ingestion-bff-go-sa"
+      variable = "${local.oidc_issuer_url}:sub"
       values   = ["system:serviceaccount:pfm-banking:pfm-ingestion-bff-go-sa"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_url}:aud"
+      values   = ["sts.amazonaws.com"]
     }
   }
 }
@@ -108,7 +153,7 @@ data "aws_iam_policy_document" "ingestion_s3_kms_policy" {
       "kms:GenerateDataKey",
       "kms:DescribeKey"
     ]
-    resources = [var.kms_master_key_arn]
+    resources = [local.kms_master_key_arn]
   }
 }
 
