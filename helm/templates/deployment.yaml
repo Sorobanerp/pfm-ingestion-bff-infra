@@ -24,6 +24,7 @@ spec:
         tags.datadoghq.com/version: "0.1.0"
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: {{ .Values.serviceAccount.name | default "pfm-ingestion-bff-go-sa" }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
@@ -44,6 +45,11 @@ spec:
             - name: http
               containerPort: {{ .Values.ports.container }}
               protocol: TCP
+          {{- if .Values.command }}
+          command:
+            {{- toYaml .Values.command | nindent 12 }}
+          {{- end }}
+          {{- if ne (.Values.probesEnabled | default true) false }}
           livenessProbe:
             httpGet:
               path: /health
@@ -56,6 +62,7 @@ spec:
               port: http
             initialDelaySeconds: 3
             periodSeconds: 5
+          {{- end }}
           env:
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
