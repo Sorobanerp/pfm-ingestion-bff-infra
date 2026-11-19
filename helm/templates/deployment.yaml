@@ -49,7 +49,7 @@ spec:
           command:
             {{- toYaml .Values.command | nindent 12 }}
           {{- end }}
-          {{- if ne (.Values.probesEnabled | default true) false }}
+          {{- if ne (toString .Values.probesEnabled) "false" }}
           livenessProbe:
             httpGet:
               path: /health
