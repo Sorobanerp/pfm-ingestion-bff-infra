@@ -251,6 +251,11 @@ resource "helm_release" "pfm_ingestion_bff" {
     value = kubernetes_service_account_v1.ingestion_bff_sa.metadata[0].name
   }
 
+  set {
+    name  = "chartChecksum"
+    value = filesha256("${path.module}/../../helm/templates/deployment.yaml")
+  }
+
   depends_on = [kubernetes_service_account_v1.ingestion_bff_sa]
 }
 
