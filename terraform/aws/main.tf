@@ -104,39 +104,12 @@ locals {
   private_subnet_ids          = try(data.terraform_remote_state.shared.outputs.private_subnet_ids, [])
   task_subnet_ids             = length(local.public_subnet_ids) > 0 ? local.public_subnet_ids : local.private_subnet_ids
   upstash_kafka_secret_arn    = try(data.terraform_remote_state.shared.outputs.upstash_kafka_secret_arn, "")
+  statements_bucket_name      = try(data.terraform_remote_state.shared.outputs.s3_statements_bucket, "pfm-statements-encrypted-${var.environment}")
+  statements_bucket_arn       = try(data.terraform_remote_state.shared.outputs.s3_statements_bucket_arn, "arn:aws:s3:::pfm-statements-encrypted-${var.environment}")
 }
 
-# 1. Dedicated S3 Bucket for KMS-Encrypted Credit Card Statements (SSE-KMS)
-resource "aws_s3_bucket" "statements_encrypted" {
-  bucket = "pfm-statements-encrypted-${var.environment}"
-
-  tags = {
-    Service     = "pfm-ingestion-bff-go"
-    Environment = var.environment
-    ManagedBy   = "OpenTofu"
-    Compliance  = "ADR-006-Envelope-Encryption"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "statements_encrypted" {
-  bucket                  = aws_s3_bucket.statements_encrypted.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "statements_encrypted" {
-  bucket = aws_s3_bucket.statements_encrypted.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      kms_master_key_id = local.kms_master_key_arn
-      sse_algorithm     = "aws:kms"
-    }
-    bucket_key_enabled = true
-  }
-}
+# 1. Shared S3 Bucket for KMS-Encrypted Credit Card Statements (SSE-KMS)
+# Provisioned and owned by pfm-shared-infra (ADR-006 / ADR-008); referenced via remote state above.
 
 # =============================================================================
 # Amazon ECS Fargate Spot & Service Connect Pilot (ADR-008)
@@ -203,8 +176,8 @@ resource "aws_iam_role_policy" "ecs_task_least_privilege" {
           "s3:ListBucket"
         ]
         Resource = [
-          aws_s3_bucket.statements_encrypted.arn,
-          "${aws_s3_bucket.statements_encrypted.arn}/*"
+          local.statements_bucket_arn,
+          "${local.statements_bucket_arn}/*"
         ]
       },
       {
@@ -281,7 +254,7 @@ resource "aws_ecs_task_definition" "service" {
       environment = [
         { name = "APP_ENV", value = "prod" },
         { name = "PORT", value = "18080" },
-        { name = "STATEMENTS_BUCKET", value = aws_s3_bucket.statements_encrypted.bucket }
+        { name = "STATEMENTS_BUCKET", value = local.statements_bucket_name }
       ]
     }
   ])
@@ -433,8 +406,8 @@ data "aws_iam_policy_document" "ingestion_s3_kms_policy" {
       "s3:ListBucket"
     ]
     resources = [
-      aws_s3_bucket.statements_encrypted.arn,
-      "${aws_s3_bucket.statements_encrypted.arn}/*"
+      local.statements_bucket_arn,
+      "${local.statements_bucket_arn}/*"
     ]
   }
 
@@ -485,7 +458,7 @@ resource "helm_release" "pfm_ingestion_bff" {
 }
 
 output "s3_bucket_name" {
-  value = aws_s3_bucket.statements_encrypted.bucket
+  value = local.statements_bucket_name
 }
 
 output "iam_role_arn" {
