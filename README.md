@@ -1,25 +1,65 @@
-# `pfm-ingestion-bff-infra`
+# PFM Ingestion BFF Infra — IaC 1:1 (ECS Fargate Spot Arm64 / EKS)
 
-> **Repositório 1:1 IaC (ADR-002 & ADR-007) — OpenTofu/Terraform Multicloud (AWS, Azure, GCP), Helm Charts & Pipeline DevSecOps para `pfm-ingestion-bff-go`**
+[![Gitflow](https://img.shields.io/badge/Gitflow-develop%20%7C%20main-indigo)](CONTRIBUTING.md)
+[![SemVer](https://img.shields.io/badge/SemVer-2.0.0-blue)](CHANGELOG.md)
+[![Docs](https://img.shields.io/badge/PFM%20Docs-V3.0-8CBA51)](https://sorobanerp.github.io/pfm-docs/)
 
-## Estrutura do Repositório
+---
 
-```text
-pfm-ingestion-bff-infra/
-├── terraform/
-│   ├── aws/main.tf             # IAM Role IRSA, S3 Bucket SSE-KMS e Política KMS exclusiva
-│   ├── azure/main.tf           # Managed Identity, Blob Container e Key Vault Crypto User
-│   └── gcp/main.tf             # Service Account, GCS Bucket CMEK e Cloud KMS IAM
-├── helm/
-│   ├── Chart.yaml              # Metadados do Chart Kubernetes
-│   ├── values-local.yaml       # Limites de RAM, Probes /health, HPA e endpoints LocalStack/Kafka
-│   └── values-prod.yaml        # Produção HA com IRSA, HPA (3..15) e OpenTelemetry OTLP
-└── .github/workflows/ci-cd.yml # Testes Go (-race), Gitleaks, Semgrep, Trivy e Build Distroless
+## 1. Visão Geral & Papel na Arquitetura
+
+Infraestrutura dedicada 1:1 para o `pfm-ingestion-bff-go`: Task Definition **Fargate Spot Arm64**, Service Connect (`pfm-ingestion-bff-go.pfm.internal:18080`), IAM Task Role (S3 KMS, Secrets Manager), Auto Scaling (`1–3`) e Rollback Automático S3.
+
+- **Repositório:** `Sorobanerp/pfm-ingestion-bff-infra`
+- **Vínculo com `pfm-docs`:** `ADR-002, ADR-008 | US-06, US-08`
+
+```mermaid
+flowchart LR
+    INFRA["pfm-ingestion-bff-infra (OpenTofu)"] --> ECS["ECS Service (Fargate Spot Arm64)"]
+    ECS --> SC["Service Connect: pfm-ingestion-bff-go.pfm.internal:18080"]
 ```
 
 ---
 
-## Topologia de Portas: Local Host vs. Kubernetes Cloud
+## 2. Pré-requisitos & Variáveis de Ambiente
 
-- **Host Local (`values-local.yaml`):** HTTP `18100` (`SERVER_PORT`), Envoy `18080`, LocalStack `14566`, Kafka `19092`, Ledger `18200`/`18210`, Forecast `18110`.
-- **Produção K8s (`values-prod.yaml`):** HTTP `8080` (Service & Container), Envoy `8080`, Kafka `9092`, Ledger `8080`/`9090`, Forecast `9090`.
+### Pré-requisitos
+- OpenTofu `>= 1.8.0`
+- Trivy `>= 0.50`
+
+### Variáveis de Ambiente (Sem Segredos Hardcoded)
+| Variável | Padrão | Descrição |
+| :--- | :---: | :--- |
+| `TF_VAR_compute_engine` | `ecs_fargate_spot` | Motor de compute (`ecs_fargate_spot` ou `eks`) |
+| `TF_VAR_environment` | `prod` | Ambiente alvo |
+| `TF_STATE_BUCKET_AWS` | *(CI Secret/Var)* | Bucket S3 de state remoto OpenTofu |
+
+> **Segurança (Zero-Trust):** Nunca commite tokens, senhas, chaves AWS ou strings de conexão com credenciais reais. Utilize `.env` local (ignorado no `.gitignore`) ou AWS Secrets Manager / GitHub OIDC.
+
+---
+
+## 3. Como Executar Localmente
+
+```bash
+tofu -chdir=terraform/aws init -backend=false
+tofu -chdir=terraform/aws validate
+```
+
+---
+
+## 4. Como Testar e Validar
+
+```bash
+tofu fmt -check -recursive terraform/
+tofu -chdir=terraform/aws init -backend=false && tofu -chdir=terraform/aws validate
+trivy config --severity CRITICAL,HIGH --exit-code 1 terraform/
+```
+
+---
+
+## 5. Como Provisionar / Validar na Nuvem
+
+1. Fluxo Gitflow: `feat/*` $\rightarrow$ `develop` $\rightarrow$ `release/vX.Y.Z` $\rightarrow$ `main`.
+2. Validação pós-deploy: `aws ecs describe-services --cluster pfm-pilot-prod --services pfm-ingestion-bff-go --region us-east-2`.
+
+Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para regras de Conventional Commits e [CHANGELOG.md](CHANGELOG.md) para histórico de versões.
