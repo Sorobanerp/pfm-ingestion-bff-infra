@@ -198,7 +198,7 @@ resource "aws_iam_role_policy" "ecs_task_least_privilege" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = ["*"]
+        Resource = ["arn:aws:secretsmanager:${var.aws_region}:*:secret:pfm/upstash/*"]
       }
     ]
   })
